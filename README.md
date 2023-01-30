@@ -1,3 +1,5 @@
+//GELDERLAND NIGHT LIGHT 2015
+
 Map.addLayer(table)
 
 // Select Area of Interest
@@ -5,8 +7,6 @@ Map.addLayer(table)
 var geometry = table.filter(ee.Filter.eq('ADM1_NAME' , 'Gelderland'))
 Map.centerObject(geometry)
 
-
-//GELDERLAND NIGHT LIGHT 2015
 
 //Filter image collection
 var image2015 = image.filter(ee.Filter.date('2015-05-01', '2015-05-31'))//.select('avg_rad').first();
@@ -26,7 +26,7 @@ var image2015vis = {
 
 Map.addLayer(image2015Nightlight, image2015vis, 'Gelderland Nightlight 2015')
 
-//GELDERLAND NIGHT LIGHT 
+//GELDERLAND NIGHT LIGHT 2020
 
 //Filter image collection
 
