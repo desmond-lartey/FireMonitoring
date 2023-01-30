@@ -1,0 +1,90 @@
+//Mosaic every image collection input
+var burn = ee.ImageCollection(burn).mosaic()
+var precipitation = ee.ImageCollection(precipitation).mosaic()
+var landcover = ee.ImageCollection(landcover).mosaic()
+
+print(burn)
+print(precipitation)
+print(landcover)
+
+//Select band you want from the image collection
+var burn = ee.Image(burn).select('BurnDate')
+var precipitation = ee.Image(precipitation).select('total_precipitation')
+var landcover = ee.Image(landcover).select('discrete_classification')
+
+//Add bands various bands
+var trial = landcover.addBands(precipitation).addBands(burn)
+print(trial)
+
+var stats = trial.reduceRegions({
+    collection: ParkMerged,
+    reducer: ee.Reducer.mean(),
+    scale: 500, // meters
+    tileScale: 10
+    //crs: 'EPSG:4326',
+});
+
+var dataset = ee.ImageCollection('MODIS/006/MCD64A1')
+    .filter(ee.Filter.date('2017-01-01', '2018-05-01'));
+var burnedArea = dataset.select('BurnDate');
+var burnedAreaVis = {
+    min: 30.0,
+    max: 341.0,
+    palette: ['4e0400', '951003', 'c61503', 'ff1901'],
+};
+//Map.setCenter(6.746, 46.529, 2);
+Map.addLayer(burnedArea, burnedAreaVis, 'Burned Area');
+
+//var listofparks = trial.toList(trial.size())
+//print(listofparks)
+Map.addLayer(ParkMerged)
+Map.addLayer(burn)
+Map.addLayer(precipitation)
+
+// The input feature collection is returned with new properties appended.
+// The new properties are the outcome of the region reduction per image band,
+// for each feature in the collection. Region reduction property names
+// are the same as the input image band names.
+print('Results for all in zonal statistics?', stats);
+
+//var park374 = ee.Image(listofparks.get(374))
+//var park374 = park374.clip(ParkMerged)
+//print(park374)
+
+
+var dataset = ee.ImageCollection('MODIS/006/MCD64A1')
+    .filter(ee.Filter.date('2000-01-31', '2020-12-31'));
+burnedArea = dataset.select('BurnDate');
+
+//Map.addLayer(park374.select('total_precipitation'), burnedAreaVis, 'Burned Area')
+Map.setCenter(6.746, 46.529, 2);
+Map.addLayer(burnedArea, burnedAreaVis, 'Burned Area');
+print(burnedArea)
+
+var dataset = ee.ImageCollection("ECMWF/ERA5_LAND/MONTHLY")
+    .filter(ee.Filter.date('2020-07-01', '2020-08-01'));
+
+var visualization = {
+    bands: ['temperature_2m'],
+    min: 250.0,
+    max: 320.0,
+    palette: [
+        "#000080", "#0000D9", "#4000FF", "#8000FF", "#0080FF", "#00FFFF",
+        "#00FF80", "#80FF00", "#DAFF00", "#FFFF00", "#FFF500", "#FFDA00",
+        "#FFB000", "#FFA400", "#FF4F00", "#FF2500", "#FF0A00", "#FF00FF",
+    ]
+};
+
+Map.setCenter(22.2, 21.2, 0);
+
+Map.addLayer(dataset, visualization, "Air temperature [K] at 2m height");
+
+
+
+var dataset = ee.Image("COPERNICUS/Landcover/100m/Proba-V-C3/Global/2019")
+    .select('discrete_classification');
+
+Map.setCenter(-88.6, 26.4, 1);
+
+Map.addLayer(dataset, {}, "Land Cover");
+print(dataset)
