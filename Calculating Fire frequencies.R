@@ -1,0 +1,191 @@
+#### load libraries #####
+library(reshape2)
+library(doParallel)
+library(extrafont)
+library(lubridate)
+library(xgboost)
+library(mlr)
+library(ggplot2)
+library(raster)
+library(velox)
+library(cowplot)
+library(reshape)
+library(rasterVis)
+library(RColorBrewer)
+library(cowplot)
+library(devtools)
+library(MODIS)
+loadfonts(device = "win")
+loadfonts(device = "pdf")
+fonttable()
+windowsFonts("Times New Roman" = windowsFont("Times New Roman"))
+
+## Download data ####
+MODISoptions(localArcPath = "D:/MODIS/", outDirPath= "D:/MODIS/PROCESSED")
+#EarthdataLogin(usr = "tjanssen", pwd = "****")
+runGdal(product="MCD64A1", tileH=17:18,tileV=7:8, begin="2000001", end="2021031", outProj="4326")
+
+##### List files and preprocess data ######
+files = list.files("D:/MODIS/PROCESSED/MCD64A1.006_20210215163100", full.names = T, recursive = T)
+files = files[grep("Burn_Date.", files)]
+files = files[-grep("Uncertainty", files)]
+
+ext = extent(-6, 2, 4, 11.5)
+
+s = stack(files)
+
+dates = data.frame(fn = unlist(strsplit(names(s), "[.]"))[seq(2,(length(unlist(strsplit(names(s), "[.]"))))-1,3)])
+dates$date = as.Date(dates$fn, "A%Y%j")
+dates$month = format(dates$date, "%m")
+dates$fns = seq(1,nrow(dates),1)
+
+for(i in 1:12){
+  s1 = s[[subset(dates, dates$month == unique(dates$month)[i])$fns]]
+  s1 = crop(s1, ext)
+  values(s1)[values(s1) < 1] = NA
+  values(s1)[values(s1) >= 1] = 1
+
+  s1 = calc(s1, fun = function(x){sum(x, na.rm = T)})
+  writeRaster(s1, paste("D:/MODIS/Sums/", "Burned",unique(dates$month)[i], ".tif", sep = ""),overwrite = T)
+  print(unique(dates$month)[i])}
+
+
+####### Make figures #######
+
+burn10 = raster("D:/MODIS/Sums/Burned10.tif")
+burn10[burn10 == 0 ] = NA
+burn11 = raster("D:/MODIS/Sums/Burned11.tif")
+burn11[burn11 == 0 ] = NA
+burn12 = raster("D:/MODIS/Sums/Burned12.tif")
+burn12[burn12 == 0 ] = NA
+burn01 = raster("D:/MODIS/Sums/Burned01.tif")
+burn01[burn01 == 0 ] = NA
+burn02 = raster("D:/MODIS/Sums/Burned02.tif")
+burn02[burn02 == 0 ] = NA
+burn03 = raster("D:/MODIS/Sums/Burned03.tif")
+burn03[burn03 == 0 ] = NA
+
+colr = colorRampPalette(rev(brewer.pal(9, 'YlOrRd')))
+
+countries = shapefile("D:/MODIS/Shapes/countries.shp")
+biomes = shapefile("D:/MODIS/Shapes/biomes2.shp")
+sites = shapefile("D:/MODIS/Shapes/Sites_ghana.shp")
+
+p1 = levelplot(burn10, 
+               margin=FALSE,                       # suppress marginal graphics
+               colorkey=list(
+                 space='bottom',                   # plot legend at bottom
+                 labels=list(at=seq(1,21,2), font=4)      # legend ticks and labels 
+               ),    
+               par.settings=list(
+                 axis.line=list(col='black') # suppress axes and legend outline
+               ),
+               scales=list(draw=T, x= list(cex=1),y= list(cex=1)),            # suppress axis labels
+               col.regions=colr,                   # colour ramp
+               at=seq(1,21, 1),       # colour ramp breaks
+               maxpixels = 2e5,#resolution
+               xlab = NULL,
+               ylab = NULL) +
+  layer(sp.polygons(countries, lwd=2))   +        # add oregon SPDF with latticeExtra::layer
+  layer(sp.polygons(biomes, lwd=1))    +      # add oregon SPDF with latticeExtra::layer
+  layer(sp.points(sites, col = "blue",pch = 1, lwd=6))          # add oregon SPDF with latticeExtra::layer
+
+p2 = levelplot(burn11, 
+               margin=FALSE,                       # suppress marginal graphics
+               colorkey=list(
+                 space='bottom',                   # plot legend at bottom
+                 labels=list(at=seq(1,21,2), font=4)      # legend ticks and labels 
+               ),    
+               par.settings=list(
+                 axis.line=list(col='black') # suppress axes and legend outline
+               ),
+               scales=list(draw=T, x= list(cex=1),y= list(cex=1)),            # suppress axis labels
+               col.regions=colr,                   # colour ramp
+               at=seq(1,21,1),       # colour ramp breaks
+               maxpixels = 2e5,#resolution
+               xlab = NULL,
+               ylab = NULL) +
+  layer(sp.polygons(countries, lwd=2))   +        # add oregon SPDF with latticeExtra::layer
+  layer(sp.polygons(biomes, lwd=1))    +      # add oregon SPDF with latticeExtra::layer
+  layer(sp.points(sites, col = "blue",pch = 1, lwd=6)) 
+
+p3 = levelplot(burn12, 
+               margin=FALSE,                       # suppress marginal graphics
+               colorkey=list(
+                 space='bottom',                   # plot legend at bottom
+                 labels=list(at=seq(1,21,2), font=4)      # legend ticks and labels 
+               ),    
+               par.settings=list(
+                 axis.line=list(col='black') # suppress axes and legend outline
+               ),
+               scales=list(draw=T, x= list(cex=1),y= list(cex=1)),            # suppress axis labels
+               col.regions=colr,                   # colour ramp
+               at=seq(1,21,1),       # colour ramp breaks
+               maxpixels = 2e5,#resolution
+               xlab = NULL,
+               ylab = NULL) +
+  layer(sp.polygons(countries, lwd=2))   +        # add oregon SPDF with latticeExtra::layer
+  layer(sp.polygons(biomes, lwd=1)) +         # add oregon SPDF with latticeExtra::layer
+  layer(sp.points(sites, col = "blue",pch = 1, lwd=6)) 
+
+p4 = levelplot(burn01, 
+               margin=FALSE,                       # suppress marginal graphics
+               colorkey=list(
+                 space='bottom',                   # plot legend at bottom
+                 labels=list(at=seq(1,21,2), font=4)      # legend ticks and labels 
+               ),    
+               par.settings=list(
+                 axis.line=list(col='black') # suppress axes and legend outline
+               ),
+               scales=list(draw=T, x= list(cex=1),y= list(cex=1)),            # suppress axis labels
+               col.regions=colr,                   # colour ramp
+               at=seq(1,21,1),       # colour ramp breaks
+               maxpixels = 2e5,#resolution
+               xlab = NULL,
+               ylab = NULL) +
+  layer(sp.polygons(countries, lwd=2))   +        # add oregon SPDF with latticeExtra::layer
+  layer(sp.polygons(biomes, lwd=1))      +    # add oregon SPDF with latticeExtra::layer
+  layer(sp.points(sites, col = "blue",pch = 1, lwd=6)) 
+
+p5 = levelplot(burn02, 
+               margin=FALSE,                       # suppress marginal graphics
+               colorkey=list(
+                 space='bottom',                   # plot legend at bottom
+                 labels=list(at=seq(1,21,2), font=4)      # legend ticks and labels 
+               ),    
+               par.settings=list(
+                 axis.line=list(col='black') # suppress axes and legend outline
+               ),
+               scales=list(draw=T, x= list(cex=1),y= list(cex=1)),            # suppress axis labels
+               col.regions=colr,                   # colour ramp
+               at=seq(1,21,1),       # colour ramp breaks
+               maxpixels = 2e5,#resolution
+               xlab = NULL,
+               ylab = NULL) +
+  layer(sp.polygons(countries, lwd=2))   +        # add oregon SPDF with latticeExtra::layer
+  layer(sp.polygons(biomes, lwd=1))     +     # add oregon SPDF with latticeExtra::layer
+  layer(sp.points(sites, col = "blue",pch = 1, lwd=6)) 
+
+p6 = levelplot(burn03, 
+               margin=FALSE,                       # suppress marginal graphics
+               colorkey=list(
+                 space='bottom',                   # plot legend at bottom
+                 labels=list(at=seq(1,21,2), font=4)      # legend ticks and labels 
+               ),    
+               par.settings=list(
+                 axis.line=list(col='black') # suppress axes and legend outline
+               ),
+               scales=list(draw=T, x= list(cex=1),y= list(cex=1)),            # suppress axis labels
+               col.regions=colr,                   # colour ramp
+               at=seq(1,21,1),       # colour ramp breaks
+               maxpixels = 2e5,#resolution
+               xlab = NULL,
+               ylab = NULL) +
+  layer(sp.polygons(countries, lwd=2))   +        # add oregon SPDF with latticeExtra::layer
+  layer(sp.polygons(biomes, lwd=1))    +      # add oregon SPDF with latticeExtra::layer
+  layer(sp.points(sites, col = "blue",pch = 1, lwd=6)) 
+
+
+cairo_pdf("D:/MODIS/Plots/Figure1.pdf", width =10, height = 8, family = "Times New Roman")
+plot_grid(p1,p2,p3,p4,p5,p6,align = c("hv"), ncol = 3, labels = c("a", "b", "c", "d", "e", "f"), scale = 1.05)
+dev.off()
