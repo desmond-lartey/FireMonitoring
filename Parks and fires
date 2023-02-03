@@ -1,3 +1,9 @@
+/*
+Copyright (c) 2022 Desmond Lartey.
+This work is licensed under the terms of the MIT license.  
+For a copy, see https://opensource.org/licenses/MIT
+*/
+
 //Mosaic every image collection input
 var burn = ee.ImageCollection(burn).mosaic()
 var precipitation = ee.ImageCollection(precipitation).mosaic()
