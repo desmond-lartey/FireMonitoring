@@ -1,3 +1,8 @@
+/*
+Desmond Lartey.
+This work is licensed under the terms of the MIT license.  
+For a copy, see https://opensource.org/licenses/MIT
+*/
 #### load libraries #####
 library(reshape2)
 library(doParallel)
